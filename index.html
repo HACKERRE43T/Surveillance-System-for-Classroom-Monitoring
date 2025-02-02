@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goodghsmannacherry - Surveillance</title>
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #181818;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            flex-direction: column;
+        }
+        h1 {
+            color: #00bcd4;
+            font-size: 48px;
+            margin: 0;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(0, 188, 212, 0.6), 0 0 20px rgba(0, 188, 212, 0.8);
+        }
+        h3 {
+            color: #fff;
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+
+        /* Loading Screen */
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.6));
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            z-index: 100;
+            opacity: 0;
+            animation: fadeIn 1s forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .loading-text {
+            animation: typing 3s steps(30) 1s forwards, blink 0.75s step-end infinite;
+            white-space: nowrap;
+            overflow: hidden;
+            border-right: 4px solid white;
+        }
+
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+
+        @keyframes blink {
+            50% { border-color: transparent; }
+        }
+
+        /* Video Container */
+        #video-container {
+            display: none;
+            width: 100%;
+            max-width: 1000px;
+            margin-top: 30px;
+            border: 2px solid #00bcd4;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Canvas for Motion Tracking */
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        /* Incident Log */
+        #incidentLog {
+            color: yellow;
+            font-size: 14px;
+            max-height: 200px;
+            overflow-y: scroll;
+            background-color: #333;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 20px;
+            width: 100%;
+            max-width: 1000px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.6);
+            display: none;
+        }
+
+        /* Admin Login */
+        #adminLogin {
+            background-color: #222;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7);
+            display: none;
+            z-index: 10;
+            max-width: 350px;
+            width: 100%;
+        }
+
+        /* Button Styles */
+        .button {
+            background-color: #00bcd4;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 250px;
+        }
+        .button:hover {
+            background-color: #00a4b5;
+        }
+
+        input {
+            padding: 12px;
+            margin: 20px 0;
+            width: 100%;
+            max-width: 250px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            background-color: #222;
+            color: white;
+            font-size: 16px;
+        }
+
+        /* SOS Button for Worker */
+        #sosButton {
+            display: none;
+            background-color: red;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen">
+        <h1>Goodghsmannacherry</h1>
+        <p class="loading-text">Developed by Arjun</p>
+    </div>
+
+    <!-- Main Content Area -->
+    <div id="main-content" style="display: none;">
+        <!-- Login Screen -->
+        <div id="login-container">
+            <h3>Select Your Role</h3>
+            <button class="button" id="workerButton">Worker</button>
+            <button class="button" id="adminButton">Administrator</button>
+        </div>
+
+        <!-- Admin Login -->
+        <div id="adminLogin">
+            <h3>Enter Passcode</h3>
+            <input type="password" id="passcodeInput" placeholder="Enter Passcode">
+            <button class="button" id="submitPasscode">Submit</button>
+        </div>
+
+        <!-- Video Stream -->
+        <div id="video-container">
+            <video id="homeVideo" autoplay></video>
+            <canvas id="motionCanvas"></canvas>
+        </div>
+
+        <!-- Incident Log -->
+        <div id="incidentLog">
+            <h3>Classroom Incident Log</h3>
+            <div id="logMessages"></div>
+        </div>
+
+        <!-- SOS Button for Worker -->
+        <button class="button" id="sosButton" onclick="sendSOS()">Send SOS</button>
+    </div>
+
+    <script>
+        const loadingScreen = document.getElementById('loadingScreen');
+        const mainContent = document.getElementById('main-content');
+        const workerButton = document.getElementById('workerButton');
+        const adminButton = document.getElementById('adminButton');
+        const adminLogin = document.getElementById('adminLogin');
+        const submitPasscode = document.getElementById('submitPasscode');
+        const passcodeInput = document.getElementById('passcodeInput');
+        const videoContainer = document.getElementById('video-container');
+        const homeVideo = document.getElementById('homeVideo');
+        const motionCanvas = document.getElementById('motionCanvas');
+        const incidentLog = document.getElementById('incidentLog');
+        const logMessages = document.getElementById('logMessages');
+        const sosButton = document.getElementById('sosButton');
+
+        const ADMIN_PASSCODE = 'ghsmncy123'; // The admin passcode
+
+        // Simulate Loading Time
+        setTimeout(() => {
+            loadingScreen.style.display = 'none'; // Hide loading screen
+            mainContent.style.display = 'block'; // Show main content
+        }, 5000); // Adjust the duration of the loading screen (5 seconds)
+
+        // Worker button clicked
+        workerButton.onclick = () => {
+            // Show SOS button for workers
+            sosButton.style.display = 'block';
+            // Directly start displaying video from class
+            startReceivingVideo();
+        };
+
+        // Admin button clicked
+        adminButton.onclick = () => {
+            // Show passcode input
+            adminLogin.style.display = 'block';
+        };
+
+        // Submit passcode
+        submitPasscode.onclick = () => {
+            const enteredPasscode = passcodeInput.value;
+            if (enteredPasscode === ADMIN_PASSCODE) {
+                // If passcode is correct, show the video feed
+                startReceivingVideo();
+                // Show incident log for Admin
+                incidentLog.style.display = 'block';
+            } else {
+                alert('Incorrect Passcode');
+            }
+        };
+
+        // Function to simulate receiving video (replace with WebRTC logic in real implementation)
+        function startReceivingVideo() {
+            adminLogin.style.display = 'none'; // Hide the passcode screen
+            videoContainer.style.display = 'block'; // Show video container
+
+            // Access webcam
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    homeVideo.srcObject = stream;
+
+                    // Resize canvas to match video dimensions
+                    motionCanvas.width = homeVideo.videoWidth;
+                    motionCanvas.height = homeVideo.videoHeight;
+
+                    // Draw the video frame to the canvas for tracking
+                    const context = motionCanvas.getContext('2d');
+                    function drawFrame() {
+                        context.drawImage(homeVideo, 0, 0, motionCanvas.width, motionCanvas.height);
+                        requestAnimationFrame(drawFrame);
+                    }
+                    drawFrame();
+                })
+                .catch(err => {
+                    console.log('Error accessing webcam: ' + err);
+                });
+        }
+
+        // Function to log incidents
+        function logMessage(message) {
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            logMessages.appendChild(logEntry);
+        }
+
+        // Function to send SOS (for workers)
+        function sendSOS() {
+            logMessage('Class Threat Detected! SOS alert sent!');
+        }
+    </script>
+</body>
+</html>
