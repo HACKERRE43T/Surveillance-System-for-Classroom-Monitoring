@@ -32,47 +32,6 @@
             margin-bottom: 15px;
         }
 
-        /* Loading Screen */
-        #loadingScreen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(45deg, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.6));
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
-            z-index: 100;
-            opacity: 0;
-            animation: fadeIn 1s forwards;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .loading-text {
-            animation: typing 3s steps(30) 1s forwards, blink 0.75s step-end infinite;
-            white-space: nowrap;
-            overflow: hidden;
-            border-right: 4px solid white;
-        }
-
-        @keyframes typing {
-            from { width: 0; }
-            to { width: 100%; }
-        }
-
-        @keyframes blink {
-            50% { border-color: transparent; }
-        }
-
         /* Video Container */
         #video-container {
             display: none;
@@ -215,6 +174,16 @@
 
         const ADMIN_PASSCODE = 'ghsmncy123'; // The admin passcode
 
+        let localStream;
+        let peerConnection;
+        const iceServers = {
+            iceServers: [
+                {
+                    urls: 'stun:stun.l.google.com:19302' // Google's public STUN server
+                }
+            ]
+        };
+
         // Simulate Loading Time
         setTimeout(() => {
             loadingScreen.style.display = 'none'; // Hide loading screen
@@ -225,8 +194,8 @@
         workerButton.onclick = () => {
             // Show SOS button for workers
             sosButton.style.display = 'block';
-            // Directly start displaying video from class
-            startReceivingVideo();
+            // Start video streaming
+            startStreaming();
         };
 
         // Admin button clicked
@@ -248,31 +217,55 @@
             }
         };
 
-        // Function to simulate receiving video (replace with WebRTC logic in real implementation)
-        function startReceivingVideo() {
-            adminLogin.style.display = 'none'; // Hide the passcode screen
-            videoContainer.style.display = 'block'; // Show video container
-
-            // Access webcam
+        // Function to start video streaming from worker to admin
+        function startStreaming() {
             navigator.mediaDevices.getUserMedia({ video: true })
                 .then(stream => {
+                    localStream = stream;
                     homeVideo.srcObject = stream;
 
-                    // Resize canvas to match video dimensions
-                    motionCanvas.width = homeVideo.videoWidth;
-                    motionCanvas.height = homeVideo.videoHeight;
+                    peerConnection = new RTCPeerConnection(iceServers);
+                    localStream.getTracks().forEach(track => {
+                        peerConnection.addTrack(track, localStream);
+                    });
 
-                    // Draw the video frame to the canvas for tracking
-                    const context = motionCanvas.getContext('2d');
-                    function drawFrame() {
-                        context.drawImage(homeVideo, 0, 0, motionCanvas.width, motionCanvas.height);
-                        requestAnimationFrame(drawFrame);
-                    }
-                    drawFrame();
+                    peerConnection.createOffer()
+                        .then(offer => {
+                            return peerConnection.setLocalDescription(offer);
+                        })
+                        .then(() => {
+                            // Signal the administrator
+                            sendOffer(peerConnection.localDescription);
+                        })
+                        .catch(error => console.log(error));
                 })
-                .catch(err => {
-                    console.log('Error accessing webcam: ' + err);
-                });
+                .catch(err => console.log('Error accessing webcam: ' + err));
+        }
+
+        // Function to start receiving the video feed from worker
+        function startReceivingVideo() {
+            peerConnection.ontrack = (event) => {
+                homeVideo.srcObject = event.streams[0];
+            };
+
+            // Handle ICE candidate events
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    sendIceCandidate(event.candidate);
+                }
+            };
+        }
+
+        // Send offer to admin (via signaling server or direct connection)
+        function sendOffer(offer) {
+            // You can implement a signaling server to send the offer to the admin here
+            console.log('Sending offer:', offer);
+        }
+
+        // Send ICE candidate to admin
+        function sendIceCandidate(candidate) {
+            // You can implement a signaling server to send the ICE candidate here
+            console.log('Sending ICE candidate:', candidate);
         }
 
         // Function to log incidents
